@@ -6,9 +6,9 @@ import (
 )
 
 func main() {
-	fmt.Print("-- Starting DiceGame --\n\n")
+	fmt.Print("-- DiceGame Running --\n\n")
 
 	Simulation.PlayGame()
 
-	fmt.Print("\n-- Finished DiceGame --\n\n")
+	fmt.Print("\n-- DiceGame Ended --\n\n")
 }
