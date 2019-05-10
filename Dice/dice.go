@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
-	"sync"
 	"time"
 )
 
@@ -25,10 +24,10 @@ type Game struct {
 }
 
 // Start the Game
-func (g *Game) Start(waitgroup sync.WaitGroup) error {
-	defer waitgroup.Done()
+func (g *Game) Start() {
 	if g.players == nil || len(g.players) == 0 {
-		return errors.New("no players")
+		fmt.Println("No players, halting.")
+		return
 	}
 
 	fmt.Printf("Starting a new Game with %d players…\n", len(g.players))
@@ -36,7 +35,8 @@ func (g *Game) Start(waitgroup sync.WaitGroup) error {
 	g.listPlayers()
 	for g.round < rounds {
 		g.round++
-		fmt.Println("Starting Round", g.round+1)
+		fmt.Println("-----------------------")
+		fmt.Println("Starting Round", g.round)
 		for i := range g.players {
 			g.takeTurn(i)
 		}
@@ -45,10 +45,18 @@ func (g *Game) Start(waitgroup sync.WaitGroup) error {
 		g.resortPlayers()
 	}
 
-	g.end()
 	g.Done = true
+	if g.action != nil {
+		close(g.action)
+	}
 
-	return nil
+	winner := g.getWinner()
+	for _, p := range g.players {
+		fmt.Printf("%s has a final score of %d\n", p.name, p.score)
+	}
+	fmt.Printf("\n%s wins with a final score of %d\n", winner.name, winner.score)
+
+	return
 }
 
 // Register a new player before the Game starts
@@ -70,15 +78,12 @@ func (g *Game) Register(name string) (id int, err error) {
 }
 
 func (g *Game) takeTurn(playerNum int) {
-	fmt.Println(g.players[playerNum].name, "is taking their turn.")
+	fmt.Printf("\n%s is taking their turn.\n", g.players[playerNum].name)
 	rand.Seed(time.Now().UnixNano()) // seed once per turn
 
 	diceRemaining := totalDice
 	p := &g.players[playerNum]
 	for diceRemaining > 0 {
-		fmt.Println("===============================")
-		fmt.Println("diceRemaining", diceRemaining)
-		fmt.Println("===============================")
 		var rolls []roll
 		t := Turn{
 			g.round,
@@ -93,7 +98,6 @@ func (g *Game) takeTurn(playerNum int) {
 			t.Rolls = append(t.Rolls, r)
 			d--
 		}
-		// TODO: Make copy and compare one that comes back
 		g.action <- t
 		g.Choices = make(chan Turn)
 		chosen := 0
@@ -108,15 +112,18 @@ func (g *Game) takeTurn(playerNum int) {
 }
 
 // WaitForTurn is used outside the game to wait for a Turn to be playable
-func (g *Game) WaitForTurn() Turn {
-	var t Turn
+func (g *Game) WaitForTurn() (t Turn, err error) {
 	g.action = make(chan Turn)
 	for turn := range g.action {
 		t = turn
 		close(g.action)
 	}
+	if t.ActivePlayer == nil {
+		// TODO: fix using error for logic flow
+		err = errors.New("the game has ended now")
+	}
 
-	return t
+	return
 }
 
 func (g *Game) processChoices(response Turn) (chosen int) {
@@ -132,16 +139,17 @@ func (g *Game) processChoices(response Turn) (chosen int) {
 		}
 	}
 	response.ActivePlayer.score += total
-	fmt.Printf("%s increases his score by %d\n", response.ActivePlayer.name, total)
-	fmt.Printf("%s now has a total score of %d\n", response.ActivePlayer.name, response.ActivePlayer.score)
-	fmt.Println()
+	fmt.Printf("  … score goes up %d (total: %d)\n", total, response.ActivePlayer.score)
 
 	return
 }
 
-func (g *Game) end() {
-	// Decide Winner
-	// TODO: After all four rounds have been completed the player with the lowest combined score wins.
+func (g *Game) getWinner() player {
+	sort.Slice(g.players, func(i, j int) bool {
+		return g.players[i].score < g.players[j].score
+	})
+
+	return g.players[0]
 }
 
 func (g *Game) listPlayers() {

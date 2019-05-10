@@ -3,11 +3,10 @@ package Simulation
 import (
 	"fmt"
 	"github.com/DiceGame/Dice"
-	"sync"
 )
 
 // PlayGame simulates a game with 4 players and five
-func PlayGame(waitGroup sync.WaitGroup) {
+func PlayGame() {
 	playerNames := []string{"John Lennon", "Paul McCartney", "George Harrison", "Ringo Starr"}
 
 	players := make(map[int]string)
@@ -20,51 +19,53 @@ func PlayGame(waitGroup sync.WaitGroup) {
 		players[id] = name
 	}
 
-	go game.Start(waitGroup) // TODO: unhandled error
+	go game.Start()
 
 	for game.Done == false {
-		selections := 0
-		turn := game.WaitForTurn()
 
-		// TODO: make new method
-		fmt.Println("-----------------------")
-		fmt.Println("turn.ActivePlayer.Id: ", turn.ActivePlayer.Id)
-		fmt.Println("-----------------------")
+		turn, err := game.WaitForTurn()
+		if err != nil {
+			break
+		}
 
 		name := players[turn.ActivePlayer.Id]
-		rolls := turn.Rolls
-		fmt.Printf("Player %s sees rolls: %v\n", name, rolls)
-		for i, r := range rolls {
-			if r.Roll.Value() == Dice.Wild {
-				turn.Rolls[i].Selected = true
-				fmt.Printf("Player %s keeps: %d\n", name, turn.Rolls[i].Roll.Value())
-				selections++
-			} else if r.Roll.Value() == 1 || r.Roll.Value() == 2 {
-				turn.Rolls[i].Selected = true
-				fmt.Printf("Player %s keeps: %d\n", name, turn.Rolls[i].Roll.Value())
-				selections++
-			}
+		fmt.Printf("%s sees rolls: ", name)
+		for _, r := range turn.Rolls {
+			fmt.Printf("%d ", r.Roll.Value())
 		}
-		if selections == 0 {
-			low := 0
-			for i, r := range rolls {
-				if i == 0 {
-					// first is already lowers
-					continue
-				} else if r.Roll.Value() < turn.Rolls[i].Roll.Value() {
-					low = i
-				}
-			}
-			turn.Rolls[low].Selected = true
-			fmt.Printf("Player %s keeps: %d\n", name, turn.Rolls[low].Roll.Value())
-		}
-
+		fmt.Printf("\n")
+		makeChoice(turn)
 		game.Choices <- turn
-		if game.Done {
-			continue
-		}
 	}
 
-	fmt.Println("And I'm done")
 	return
+}
+
+func makeChoice(turn Dice.Turn) {
+	selections := 0
+	rolls := turn.Rolls
+	for i, r := range rolls {
+		if r.Roll.Value() == Dice.Wild {
+			turn.Rolls[i].Selected = true
+			fmt.Printf("  … keeps: %d\n", turn.Rolls[i].Roll.Value())
+			selections++
+		} else if r.Roll.Value() == 1 || r.Roll.Value() == 2 {
+			turn.Rolls[i].Selected = true
+			fmt.Printf("  … keeps: %d\n", turn.Rolls[i].Roll.Value())
+			selections++
+		}
+	}
+	if selections == 0 {
+		low := 0
+		for i, r := range rolls {
+			if i == 0 {
+				// first is already lowers
+				continue
+			} else if r.Roll.Value() < turn.Rolls[i].Roll.Value() {
+				low = i
+			}
+		}
+		turn.Rolls[low].Selected = true
+		fmt.Printf("  … keeps: %d\n", turn.Rolls[low].Roll.Value())
+	}
 }
