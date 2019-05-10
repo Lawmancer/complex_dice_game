@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/DiceGame/Simulation"
 )
 
 func main() {
 	fmt.Print("-- DiceGame Is Running --\n\n")
-	Simulation.PlayGame()
+	playGame()
 	fmt.Print("\n-- DiceGame Over, Man --\n\n")
+}
+
+func playGame() {
+
 }
