@@ -1,14 +1,29 @@
 package Dice
 
 type player struct {
-	id        int
+	Id        int
 	name      string
 	turnOrder int
 	score     int
 }
 
-type turn struct {
-	round        int
-	activePlayer player
-	rolls        []int
+// Turn has all the information a
+// player needs to make their choice
+type Turn struct {
+	Round        int
+	ActivePlayer *player
+	Rolls        []roll
+}
+
+type roll struct {
+	Roll     readOnlyInt
+	Selected bool
+}
+
+type readOnlyInt struct {
+	value int
+}
+
+func (s readOnlyInt) Value() int {
+	return s.value
 }
