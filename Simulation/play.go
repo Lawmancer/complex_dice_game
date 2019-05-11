@@ -2,7 +2,7 @@ package Simulation
 
 import (
 	"fmt"
-	"github.com/DiceGame/Dice"
+	"github.com/DiceGame/Game"
 )
 
 // PlayGame simulates a game with 4 players and five
@@ -10,7 +10,7 @@ func PlayGame() {
 	playerNames := []string{"John Lennon", "Paul McCartney", "George Harrison", "Ringo Starr"}
 
 	players := make(map[int]string)
-	game := Dice.Game{}
+	game := Game.Play{}
 	for _, name := range playerNames {
 		id, err := game.Register(name)
 		if err != nil {
@@ -30,8 +30,8 @@ func PlayGame() {
 
 		name := players[turn.ActivePlayer.Id]
 		fmt.Printf("%s sees rolls: ", name)
-		for _, r := range turn.Rolls {
-			fmt.Printf("%d ", r.Roll.Value())
+		for _, r := range turn.Dice {
+			fmt.Printf("%d ", r.Pips.Value())
 		}
 		fmt.Printf("\n")
 		makeChoice(turn)
@@ -41,31 +41,31 @@ func PlayGame() {
 	return
 }
 
-func makeChoice(turn Dice.Turn) {
+func makeChoice(turn Game.RollResult) {
 	selections := 0
-	rolls := turn.Rolls
-	for i, r := range rolls {
-		if r.Roll.Value() == Dice.Wild {
-			turn.Rolls[i].Selected = true
-			fmt.Printf("  … keeps: %d\n", turn.Rolls[i].Roll.Value())
+	dice := turn.Dice
+	for i, r := range dice {
+		if r.Pips.Value() == Game.Wild {
+			turn.Dice[i].Selected = true
+			fmt.Printf("  … keeps: %d\n", turn.Dice[i].Pips.Value())
 			selections++
-		} else if r.Roll.Value() == 1 || r.Roll.Value() == 2 {
-			turn.Rolls[i].Selected = true
-			fmt.Printf("  … keeps: %d\n", turn.Rolls[i].Roll.Value())
+		} else if r.Pips.Value() == 1 || r.Pips.Value() == 2 {
+			turn.Dice[i].Selected = true
+			fmt.Printf("  … keeps: %d\n", turn.Dice[i].Pips.Value())
 			selections++
 		}
 	}
 	if selections == 0 {
 		low := 0
-		for i, r := range rolls {
+		for i, r := range dice {
 			if i == 0 {
 				// first is already lowers
 				continue
-			} else if r.Roll.Value() < turn.Rolls[i].Roll.Value() {
+			} else if r.Pips.Value() < turn.Dice[i].Pips.Value() {
 				low = i
 			}
 		}
-		turn.Rolls[low].Selected = true
-		fmt.Printf("  … keeps: %d\n", turn.Rolls[low].Roll.Value())
+		turn.Dice[low].Selected = true
+		fmt.Printf("  … keeps: %d\n", turn.Dice[low].Pips.Value())
 	}
 }

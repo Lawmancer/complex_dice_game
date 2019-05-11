@@ -1,4 +1,4 @@
-package Dice
+package Game
 
 type player struct {
 	Id        int
@@ -7,16 +7,16 @@ type player struct {
 	score     int
 }
 
-// Turn has all the information a
+// RollResult has all the information a
 // player needs to make their choice
-type Turn struct {
+type RollResult struct {
 	Round        int
 	ActivePlayer *player
-	Rolls        []roll
+	Dice         []die
 }
 
-type roll struct {
-	Roll     readOnlyInt
+type die struct {
+	Pips     readOnlyInt
 	Selected bool
 }
 
