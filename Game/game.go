@@ -38,7 +38,7 @@ func (g *Play) Start() {
 		fmt.Println("-----------------------")
 		fmt.Println("Starting Round", g.round)
 		for i := range g.players {
-			g.Turn(i)
+			g.takeTurn(i)
 		}
 		fmt.Println()
 		g.players[0].turnOrder = g.players[0].turnOrder + len(g.players) // move to end of line
@@ -77,7 +77,7 @@ func (g *Play) Register(name string) (id int, err error) {
 	return id, nil
 }
 
-func (g *Play) Turn(playerNum int) {
+func (g *Play) takeTurn(playerNum int) {
 	fmt.Printf("\n%s is taking their turn.\n", g.players[playerNum].name)
 	rand.Seed(time.Now().UnixNano()) // seed once per turn
 
@@ -112,15 +112,14 @@ func (g *Play) Turn(playerNum int) {
 }
 
 // WaitForTurn is used outside the game to wait for a Turn to be playable
-func (g *Play) WaitForTurn() (t RollResult, err error) {
+func (g *Play) WaitForTurn() (t RollResult, done bool) {
 	g.action = make(chan RollResult)
 	for turn := range g.action {
 		t = turn
 		close(g.action)
 	}
-	if t.ActivePlayer == nil {
-		// TODO: fix using error for logic flow
-		err = errors.New("the game has ended now")
+	if g.Done {
+		done = true
 	}
 
 	return

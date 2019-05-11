@@ -22,9 +22,8 @@ func PlayGame() {
 	go game.Start()
 
 	for game.Done == false {
-
-		turn, err := game.WaitForTurn()
-		if err != nil {
+		turn, done := game.WaitForTurn()
+		if done {
 			break
 		}
 
@@ -45,11 +44,7 @@ func makeChoice(turn Game.RollResult) {
 	selections := 0
 	dice := turn.Dice
 	for i, r := range dice {
-		if r.Pips.Value() == Game.Wild {
-			turn.Dice[i].Selected = true
-			fmt.Printf("  … keeps: %d\n", turn.Dice[i].Pips.Value())
-			selections++
-		} else if r.Pips.Value() == 1 || r.Pips.Value() == 2 {
+		if r.Pips.Value() == Game.Wild || r.Pips.Value() <= 2 {
 			turn.Dice[i].Selected = true
 			fmt.Printf("  … keeps: %d\n", turn.Dice[i].Pips.Value())
 			selections++
