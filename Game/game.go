@@ -14,45 +14,45 @@ const wildValue = 0
 const rounds = 4
 const totalDice = 5
 
-// Play implements GameInterface // TODO correct comment
+// Play a game
 type Play struct {
 	round   int
 	players []player
 	action  chan RollResult
 	Choices chan RollResult
-	Done    bool
+	done    bool
 }
 
 // Start playing the game
-func (g *Play) Start() {
-	if g.players == nil || len(g.players) == 0 {
+func (p *Play) Start() {
+	if p.players == nil || len(p.players) == 0 {
 		fmt.Println("No players, halting.")
 		return
 	}
 
-	fmt.Printf("Starting a new game with %d players…\n", len(g.players))
-	g.randomFirstPlayer()
-	g.listPlayers()
-	for g.round < rounds {
-		g.round++
+	fmt.Printf("Starting a new game with %d players…\n", len(p.players))
+	p.randomFirstPlayer()
+	p.listPlayers()
+	for p.round < rounds {
+		p.round++
 		fmt.Println("-----------------------")
-		fmt.Println("Starting Round", g.round)
-		for i := range g.players {
-			g.takeTurn(i)
+		fmt.Println("Starting Round", p.round)
+		for i := range p.players {
+			p.takeTurn(i)
 		}
 		fmt.Println()
-		g.players[0].turnOrder = g.players[0].turnOrder + len(g.players) // move to end of line
-		g.resortPlayers()
+		p.players[0].turnOrder = p.players[0].turnOrder + len(p.players) // move to end of line
+		p.resortPlayers()
 	}
 
-	g.Done = true
-	if g.action != nil {
-		close(g.action)
+	p.done = true
+	if p.action != nil {
+		close(p.action)
 	}
 
-	winner := g.getWinner()
-	for _, p := range g.players {
-		fmt.Printf("%s has a final score of %d\n", p.name, p.score)
+	winner := p.getWinner()
+	for _, gamer := range p.players {
+		fmt.Printf("%s has a final score of %d\n", gamer.name, gamer.score)
 	}
 	fmt.Printf("\n%s wins with a final score of %d\n", winner.name, winner.score)
 
@@ -60,34 +60,52 @@ func (g *Play) Start() {
 }
 
 // Register a new player before the game starts
-func (g *Play) Register(name string) (id int, err error) {
-	if g.round > 0 {
+func (p *Play) Register(name string) (id int, err error) {
+	if p.round > 0 {
 		return 0, errors.New("the game has already started")
 	}
 
-	id = len(g.players) + 1
+	id = len(p.players) + 1
 	newPlayer := player{
 		id,
 		name,
 		0,
 		0,
 	}
-	g.players = append(g.players, newPlayer)
+	p.players = append(p.players, newPlayer)
 
 	return id, nil
 }
 
-func (g *Play) takeTurn(playerNum int) {
-	fmt.Printf("\n%s is taking their turn.\n", g.players[playerNum].name)
+// WaitForTurn is used outside the game to wait for a Turn to be playable
+func (p *Play) WaitForTurn() (t RollResult, done bool) {
+	p.action = make(chan RollResult)
+	for turn := range p.action {
+		t = turn
+		close(p.action)
+	}
+	if p.done {
+		done = true
+	}
+
+	return
+}
+
+func (p *Play) isDone() bool {
+	return p.done
+}
+
+func (p *Play) takeTurn(playerNum int) {
+	fmt.Printf("\n%s is taking their turn.\n", p.players[playerNum].name)
 	rand.Seed(time.Now().UnixNano()) // seed once per turn
 
 	diceRemaining := totalDice
-	p := &g.players[playerNum]
+	gamer := &p.players[playerNum]
 	for diceRemaining > 0 {
 		var rolls []die
 		t := RollResult{
-			g.round,
-			p,
+			p.round,
+			gamer,
 			rolls,
 		}
 		d := diceRemaining
@@ -98,12 +116,12 @@ func (g *Play) takeTurn(playerNum int) {
 			t.Dice = append(t.Dice, r)
 			d--
 		}
-		g.action <- t
-		g.Choices = make(chan RollResult)
+		p.action <- t
+		p.Choices = make(chan RollResult)
 		chosen := 0
-		for choices := range g.Choices {
-			chosen = g.processChoices(choices)
-			close(g.Choices)
+		for choices := range p.Choices {
+			chosen = p.processChoices(choices)
+			close(p.Choices)
 		}
 		diceRemaining -= chosen
 	}
@@ -111,21 +129,7 @@ func (g *Play) takeTurn(playerNum int) {
 	return
 }
 
-// WaitForTurn is used outside the game to wait for a Turn to be playable
-func (g *Play) WaitForTurn() (t RollResult, done bool) {
-	g.action = make(chan RollResult)
-	for turn := range g.action {
-		t = turn
-		close(g.action)
-	}
-	if g.Done {
-		done = true
-	}
-
-	return
-}
-
-func (g *Play) processChoices(response RollResult) (chosen int) {
+func (p *Play) processChoices(response RollResult) (chosen int) {
 	total := 0
 	for _, r := range response.Dice {
 		if r.Selected {
@@ -143,37 +147,37 @@ func (g *Play) processChoices(response RollResult) (chosen int) {
 	return
 }
 
-func (g *Play) getWinner() player {
-	sort.Slice(g.players, func(i, j int) bool {
-		return g.players[i].score < g.players[j].score
+func (p *Play) getWinner() player {
+	sort.Slice(p.players, func(i, j int) bool {
+		return p.players[i].score < p.players[j].score
 	})
 
-	return g.players[0]
+	return p.players[0]
 }
 
-func (g *Play) listPlayers() {
-	for i, p := range g.players {
-		fmt.Printf("Player %d: %s\n", i+1, p.name)
+func (p *Play) listPlayers() {
+	for i, gamer := range p.players {
+		fmt.Printf("Player %d: %s\n", i+1, gamer.name)
 	}
 	fmt.Println()
 }
 
-func (g *Play) randomFirstPlayer() {
+func (p *Play) randomFirstPlayer() {
 	rand.Seed(time.Now().UnixNano())
-	r := rand.Intn(len(g.players))
-	g.players[r].turnOrder = 1
+	r := rand.Intn(len(p.players))
+	p.players[r].turnOrder = 1
 	next := 2
-	for i := 0; i < len(g.players); i++ {
-		if g.players[i].turnOrder == 0 {
-			g.players[i].turnOrder = next
+	for i := 0; i < len(p.players); i++ {
+		if p.players[i].turnOrder == 0 {
+			p.players[i].turnOrder = next
 			next++
 		}
 	}
-	g.resortPlayers()
+	p.resortPlayers()
 }
 
-func (g *Play) resortPlayers() {
-	sort.Slice(g.players, func(i, j int) bool {
-		return g.players[i].turnOrder < g.players[j].turnOrder
+func (p *Play) resortPlayers() {
+	sort.Slice(p.players, func(i, j int) bool {
+		return p.players[i].turnOrder < p.players[j].turnOrder
 	})
 }

@@ -21,7 +21,7 @@ func PlayGame() {
 
 	go game.Start()
 
-	for game.Done == false {
+	for {
 		turn, done := game.WaitForTurn()
 		if done {
 			break
